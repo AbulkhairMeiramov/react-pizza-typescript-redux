@@ -1,38 +1,23 @@
-import { useContext, useRef } from "react";
-import { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import axios from "axios";
-import qs from "qs";
-import { useNavigate } from "react-router-dom";
-import { SearchContext } from "../App";
+import { useCallback, useEffect } from "react";
+import { useSelector } from "react-redux";
 import { Categories } from "../components/Categories";
 import { Pagination } from "../components/Pagination/Pagination";
 import { PizzaBlock } from "../components/PizzaBlock/PizzaBlock";
 import { Skeleton } from "../components/PizzaBlock/Skeleton";
-import { Sort, sortLists } from "../components/Sort";
-import {
-  setCategoryId,
-  setCurrentPage,
-  setFilters,
-} from "../redux/slices/filterSlice";
+import { SortPopup } from "../components/SortPopup";
+import { setCategoryId, setCurrentPage } from "../redux/slices/filterSlice";
 import { fetchPizzas } from "../redux/slices/pizzaSlice";
+import { RootState, useAppDispatch } from "../redux/store";
 
-export const Home = () => {
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const isSearch = useRef(false);
-  const isMounted = useRef(false);
-
-  const { categoryId, sort, currentPage } = useSelector(
-    (state) => state.filter
+export const Home: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const { pizzas, status } = useSelector((state: RootState) => state.pizza);
+  const { categoryId, sort, currentPage, searchValue } = useSelector(
+    (state: RootState) => state.filter
   );
 
-  const { pizzas, status } = useSelector((state) => state.pizza);
-
-  const { searchValue } = useContext(SearchContext);
-
-  const onChangePage = (number) => {
-    dispatch(setCurrentPage(number));
+  const onChangePage = (page: number) => {
+    dispatch(setCurrentPage(page));
   };
 
   const getPizzas = async () => {
@@ -74,46 +59,22 @@ export const Home = () => {
     window.scrollTo(0, 0);
   };
 
-  useEffect(() => {
-    if (window.location.search) {
-      const params = qs.parse(window.location.search.substring(1));
-      const sort = sortLists.find(
-        (obj) => obj?.sortProperty === params?.sortProperty
-      );
-      dispatch(
-        setFilters({
-          ...params,
-          sort,
-        })
-      );
-      isSearch.current = true;
-    }
-  }, []);
+  const onClickCategory = useCallback(
+    (index: number) => {
+      dispatch(setCategoryId(index));
+    },
+    [dispatch]
+  );
 
   useEffect(() => {
     getPizzas();
-  }, []);
-
-  useEffect(() => {
-    if (isMounted.current) {
-      const queryString = qs.stringify({
-        sortProperty: sort.sortProperty,
-        categoryId,
-        currentPage,
-      });
-      navigate(`?${queryString}`);
-    }
-    isMounted.current = true;
-  }, [categoryId, sort.sortProperty, currentPage]);
+  }, [categoryId, sort.sortProperty, currentPage, searchValue]);
 
   return (
     <div className="container">
       <div className="content__top">
-        <Categories
-          categoryId={categoryId}
-          onClickCategory={(index) => dispatch(setCategoryId(index))}
-        />
-        <Sort />
+        <Categories categoryId={categoryId} onClickCategory={onClickCategory} />
+        <SortPopup sort={sort} />
       </div>
       <h2 className="content__title">Все пиццы</h2>
       {status === "error" ? (
@@ -128,7 +89,7 @@ export const Home = () => {
         <div className="content__items">
           {status === "loading"
             ? [...new Array(6)].map((_, index) => <Skeleton key={index} />)
-            : pizzas.map((pizza) => (
+            : pizzas.map((pizza: any) => (
                 <PizzaBlock
                   id={pizza.id}
                   title={pizza.title}
